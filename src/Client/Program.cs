@@ -3,6 +3,8 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 Console.WriteLine("The Socket Client is starting...");
@@ -13,29 +15,56 @@ Socket client = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.
 IPEndPoint serverEndPoint = new(ip, port);
 await client.ConnectAsync(serverEndPoint);
 
-if (client.Connected)
+Console.WriteLine("the clinet has been connected to Server...");
+async void SendMessage()
 {
-    Console.WriteLine("the clinet has been connected to Server...");
-    await Task.Run(async () =>
+    const string message = "What time is it?";
+    ArraySegment<byte> sendBuffer = new(Encoding.UTF8.GetBytes(message));
+    while (client.Connected)
     {
-        const string message = "What time is it?";
-        ArraySegment<byte> sendBuffer = new(new byte[1024]);
-        while (true)
+        await client.SendAsync(sendBuffer, SocketFlags.None);
+        await Task.Delay(1000 * 10);
+    }
+}
+
+async void ReceiveMessage()
+{
+    ArraySegment<byte> recvBuffer = new(new byte[1024]);
+    do
+    {
+        try
         {
-            await client.SendAsync(sendBuffer, SocketFlags.None);
-            await Task.Delay(1500);
+            int dataLen = await client.ReceiveAsync(recvBuffer, SocketFlags.None);
+            if (dataLen > 0)
+            {
+                Console.WriteLine($"received the server echo: {Encoding.UTF8.GetString(new ReadOnlySpan<byte>(recvBuffer.Array))}...");
+            }
+            await Task.Delay(10);
         }
-
-    });
-
-    await Task.Run(async () =>
-    {
-        ArraySegment<byte> recvBuffer = new(new byte[1024]);
-        int dataLen;
-        do
+        catch (Exception)
         {
-            dataLen = await client.ReceiveAsync(recvBuffer, SocketFlags.Peek);
-            Console.WriteLine($"received the server data: {dataLen}...");
-        } while (dataLen > 0);
-    });
+            if (client.Connected) continue;
+            Console.WriteLine($"the server has been disconnected...");
+            client.Dispose();
+            return;
+        }
+    } while (client.Connected);
+}
+
+Thread thSend = new(SendMessage)
+{
+    IsBackground = true
+};
+
+Thread thRecv = new(ReceiveMessage)
+{
+    IsBackground = true
+};
+
+thSend.Start();
+thRecv.Start();
+
+while (true)
+{
+    await Task.Delay(5000);
 }

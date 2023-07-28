@@ -3,6 +3,8 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 Console.WriteLine("The Socket Server is starting...");
@@ -16,31 +18,37 @@ server.Listen(1000);
 Console.WriteLine($"the server is listening to port: {endPoint}...");
 Console.WriteLine("Press the 'Ctrl+C' to exit server...");
 
-await Task.Run(async () =>
+while (true)
 {
-    while (true)
+    Socket remote = await server.AcceptAsync();
+    Console.WriteLine($"accepted the remote client: {remote.RemoteEndPoint}");
+    async void ReceiveRemoteData()
     {
-        Socket remote = await server.AcceptAsync();
-        Console.WriteLine($"accepted the remote client: {remote.RemoteEndPoint}");
-
-        if (remote.Connected)
+        ArraySegment<byte> recvBuffer = new(new byte[1024]);
+        while (true)
         {
-            await Task.Run(async () =>
+            try
             {
-                ArraySegment<byte> recvBuffer = new(new byte[1024]);
-                int dataLen;
-                do
+                int dataLen = await remote.ReceiveAsync(recvBuffer, SocketFlags.None);
+                if (dataLen > 0)
                 {
-                    dataLen = await remote.ReceiveAsync(recvBuffer, SocketFlags.None);
-                    Console.WriteLine($"received the client data: {dataLen}...");
-                    await Task.Delay(100);
-                } while (dataLen > 0);
-            });
+                    Console.WriteLine($"received the client {remote.RemoteEndPoint} data: {Encoding.UTF8.GetString(new ReadOnlySpan<byte>(recvBuffer.Array))}...");
+                    await remote.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("It's " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss:ffffff"))), SocketFlags.None);
+                }
+                await Task.Delay(10);
+            }
+            catch (Exception)
+            {
+                if (remote.Connected) continue;
+                Console.WriteLine($"the client {remote.RemoteEndPoint} has been disconnected...");
+                remote.Dispose();
+                return;
+            }
         }
     }
-});
-
-do
-{
-    await Task.Delay(3000);
-} while (true);
+    Thread thread = new(ReceiveRemoteData)
+    {
+        IsBackground = true
+    };
+    thread.Start();
+}
