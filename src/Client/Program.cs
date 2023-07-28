@@ -4,7 +4,6 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 Console.WriteLine("The Socket Client is starting...");
@@ -16,7 +15,7 @@ IPEndPoint serverEndPoint = new(ip, port);
 await client.ConnectAsync(serverEndPoint);
 
 Console.WriteLine("the clinet has been connected to Server...");
-async void SendMessage()
+await Task.Factory.StartNew(async () =>
 {
     const string message = "What time is it?";
     ArraySegment<byte> sendBuffer = new(Encoding.UTF8.GetBytes(message));
@@ -25,13 +24,13 @@ async void SendMessage()
         await client.SendAsync(sendBuffer, SocketFlags.None);
         await Task.Delay(1000 * 10);
     }
-}
+});
 
-async void ReceiveMessage()
+await Task.Factory.StartNew(async () =>
 {
-    ArraySegment<byte> recvBuffer = new(new byte[1024]);
-    do
+    while (client.Connected)
     {
+        ArraySegment<byte> recvBuffer = new(new byte[1024]);
         try
         {
             int dataLen = await client.ReceiveAsync(recvBuffer, SocketFlags.None);
@@ -48,21 +47,8 @@ async void ReceiveMessage()
             client.Dispose();
             return;
         }
-    } while (client.Connected);
-}
-
-Thread thSend = new(SendMessage)
-{
-    IsBackground = true
-};
-
-Thread thRecv = new(ReceiveMessage)
-{
-    IsBackground = true
-};
-
-thSend.Start();
-thRecv.Start();
+    }
+});
 
 while (true)
 {

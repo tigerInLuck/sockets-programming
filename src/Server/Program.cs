@@ -4,7 +4,6 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 Console.WriteLine("The Socket Server is starting...");
@@ -22,7 +21,7 @@ while (true)
 {
     Socket remote = await server.AcceptAsync();
     Console.WriteLine($"accepted the remote client: {remote.RemoteEndPoint}");
-    async void ReceiveRemoteData()
+    await Task.Factory.StartNew(async () =>
     {
         ArraySegment<byte> recvBuffer = new(new byte[1024]);
         while (true)
@@ -45,10 +44,5 @@ while (true)
                 return;
             }
         }
-    }
-    Thread thread = new(ReceiveRemoteData)
-    {
-        IsBackground = true
-    };
-    thread.Start();
+    });
 }
