@@ -34,7 +34,7 @@ while (true)
                     Console.WriteLine($"received the client {remote.RemoteEndPoint} data: {Encoding.UTF8.GetString(new ReadOnlySpan<byte>(recvBuffer.Array))}...");
                     await remote.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("It's " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss:ffffff"))), SocketFlags.None);
                 }
-                await Task.Delay(10);
+                await Task.Delay(15);
             }
             catch (Exception)
             {

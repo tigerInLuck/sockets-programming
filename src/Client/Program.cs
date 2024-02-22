@@ -38,12 +38,12 @@ await Task.Factory.StartNew(async () =>
             {
                 Console.WriteLine($"received the server echo: {Encoding.UTF8.GetString(new ReadOnlySpan<byte>(recvBuffer.Array))}...");
             }
-            await Task.Delay(10);
+            await Task.Delay(15);
         }
         catch (Exception)
         {
             if (client.Connected) continue;
-            Console.WriteLine($"the server has been disconnected...");
+            Console.WriteLine("the server has been disconnected...");
             client.Dispose();
             return;
         }
